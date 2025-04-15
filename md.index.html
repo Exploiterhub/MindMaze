@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MindMaze</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #121826;
+      color: #fff;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 10px 0;
+      font-size: 2.5em;
+      color: #00c6ff;
+    }
+
+    #info {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      font-size: 1.2em;
+      margin-bottom: 20px;
+    }
+
+    #game-board {
+      display: grid;
+      gap: 10px;
+      justify-content: center;
+      margin: auto;
+      max-width: 90vw;
+    }
+
+    .card {
+      width: 70px;
+      height: 70px;
+      background: #2a2e45;
+      border-radius: 10px;
+      font-size: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      color: transparent;
+      transition: 0.3s;
+    }
+
+    .card.revealed {
+      background: #00bfa5;
+      color: #fff;
+    }
+
+    .card.matched {
+      background: #00c853;
+      color: #fff;
+    }
+
+    #message {
+      margin: 15px 0;
+      font-weight: bold;
+    }
+
+    #leaderboard {
+      margin-top: 30px;
+    }
+
+    ol {
+      text-align: left;
+      max-width: 300px;
+      margin: auto;
+      padding-left: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .card {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>MindMaze</h1>
+  <div id="info">
+    <div>Level: <span id="level">1</span></div>
+    <div>Time: <span id="timer">0</span>s</div>
+  </div>
+  <div id="game-board"></div>
+  <div id="message"></div>
+
+  <div id="leaderboard">
+    <h2>Leaderboard</h2>
+    <ol id="scores"></ol>
+  </div>
+
+  <script>
+    const board = document.getElementById('game-board');
+    const timerEl = document.getElementById('timer');
+    const levelEl = document.getElementById('level');
+    const message = document.getElementById('message');
+    const scoresList = document.getElementById('scores');
+
+    const symbols = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    let level = 1;
+    let revealed = [];
+    let matchedCount = 0;
+    let cards = [];
+    let timer = 0;
+    let interval;
+
+    function startGame() {
+      message.textContent = '';
+      board.innerHTML = '';
+      revealed = [];
+      matchedCount = 0;
+      const pairCount = level + 3;
+      const levelSymbols = symbols.slice(0, pairCount);
+      cards = [...levelSymbols, ...levelSymbols];
+      cards.sort(() => 0.5 - Math.random());
+
+      const cols = Math.ceil(Math.sqrt(cards.length));
+      board.style.gridTemplateColumns = `repeat(${cols}, auto)`;
+
+      cards.forEach((symbol, index) => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.dataset.symbol = symbol;
+        card.dataset.index = index;
+        card.addEventListener('click', revealCard);
+        board.appendChild(card);
+      });
+
+      levelEl.textContent = level;
+      startTimer();
+    }
+
+    function revealCard(e) {
+      const card = e.currentTarget;
+      if (
+        card.classList.contains('revealed') ||
+        card.classList.contains('matched') ||
+        revealed.length === 2
+      ) return;
+
+      card.classList.add('revealed');
+      card.textContent = card.dataset.symbol;
+      revealed.push(card);
+
+      if (revealed.length === 2) {
+        const [card1, card2] = revealed;
+        if (card1.dataset.symbol === card2.dataset.symbol) {
+          card1.classList.add('matched');
+          card2.classList.add('matched');
+          matchedCount += 2;
+          revealed = [];
+
+          if (matchedCount === cards.length) {
+            stopTimer();
+            message.textContent = `Level ${level} complete!`;
+            saveScore(level, timer);
+            level++;
+            setTimeout(startGame, 2000);
+          }
+        } else {
+          setTimeout(() => {
+            card1.classList.remove('revealed');
+            card2.classList.remove('revealed');
+            card1.textContent = '';
+            card2.textContent = '';
+            revealed = [];
+          }, 800);
+        }
+      }
+    }
+
+    function startTimer() {
+      clearInterval(interval);
+      timer = 0;
+      timerEl.textContent = timer;
+      interval = setInterval(() => {
+        timer++;
+        timerEl.textContent = timer;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(interval);
+    }
+
+    function saveScore(level, time) {
+      const name = prompt(`You beat Level ${level}! Enter your name:`) || 'Anonymous';
+      const leaderboard = JSON.parse(localStorage.getItem('mindmaze_scores') || '[]');
+      leaderboard.push({ name, level, time });
+      leaderboard.sort((a, b) => a.time - b.time);
+      localStorage.setItem('mindmaze_scores', JSON.stringify(leaderboard.slice(0, 5)));
+      showLeaderboard();
+    }
+
+    function showLeaderboard() {
+      const scores = JSON.parse(localStorage.getItem('mindmaze_scores') || '[]');
+      scoresList.innerHTML = '';
+      scores.forEach(score => {
+        const li = document.createElement('li');
+        li.textContent = `${score.name} – Level ${score.level} in ${score.time}s`;
+        scoresList.appendChild(li);
+      });
+    }
+
+    showLeaderboard();
+    startGame();
+  </script>
+</body>
+</html>
